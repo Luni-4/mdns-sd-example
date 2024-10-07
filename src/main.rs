@@ -3,7 +3,7 @@ use core::net::IpAddr;
 use std::collections::HashMap;
 
 use axum::Router;
-use mdns_sd::{ServiceDaemon, ServiceInfo};
+use mdns_sd::{IfKind, ServiceDaemon, ServiceInfo};
 
 use tracing::info;
 
@@ -32,6 +32,9 @@ async fn main() -> anyhow::Result<()> {
     // Create a new mDNS service daemon
     let mdns = ServiceDaemon::new()?;
 
+    // Disable Ipv6
+    mdns.disable_interface(IfKind::IPv6)?;
+
     // HOT SPOT: Sometimes I get conflicts in the `avahi-deamon` process
     // because I'm using the device hostname. For example,
     // if my hostname is `dummy`, it becomes `dummy-2`. I cannot understand
@@ -49,6 +52,8 @@ async fn main() -> anyhow::Result<()> {
     if !hostname.ends_with(".local") {
         hostname.push_str(".local.");
     }
+
+    hostname = "arco.local.".into();
 
     // HOT SPOT: I have to maintain the loopback otherwise I can only find
     // the `localhost` address.
@@ -105,13 +110,14 @@ async fn main() -> anyhow::Result<()> {
         // records.
         &hostname,
         // Considered IP address which allow to reach out the service.
-        http_addresses.as_slice(),
+        "",
         // Port on which the service listens to. It has to be same of the
         // server.
         port,
         // Service properties
         properties,
-    )?;
+    )?
+    .enable_addr_auto();
 
     mdns.register(service)?;
 
